@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "modid",
+  "id": "backup",
   "version": "${version}",
 
-  "name": "Example Mod",
+  "name": "automated backup for minecraft",
   "description": "automatically backup your game",
   "authors": [
     "jSdCool"
@@ -23,7 +23,7 @@
     ]
   },
   "mixins": [
-    "modid.mixins.json"
+    "backup.mixins.json"
   ],
 
   "depends": {
