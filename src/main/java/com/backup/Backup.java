@@ -4,7 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 
 public class Backup extends Thread{
-    static ArrayList<String> fileIndex=new ArrayList<>(),stackTraces=new ArrayList<>();
+    static ArrayList<String> fileIndex=new ArrayList<>();
     static String source,destination;
     static int completed=0,total=0,numOfThreads=4,batchSize=10;
     static ArrayList<CopyThread> threads=new ArrayList<>();
@@ -35,7 +35,7 @@ public class Backup extends Thread{
                     threads.set(i, new CopyThread());
                     threads.get(i).start();
                 }
-                if(!threads.get(i).working) {//if the thread needs more work to do then give it more work
+                if(!threads.get(i).working) {//if the thread needs more work to do than give it more work
                     threads.get(i).toCopy=createNextJob();
                     threads.get(i).working=true;
                 }
@@ -94,7 +94,7 @@ public class Backup extends Thread{
 
     /**
      *
-     * @return weather any thread is sill running
+     * @return weather any thread is still running
      */
     static boolean threadsRunning() {
         for(int i=0;i<threads.size();i++) {
