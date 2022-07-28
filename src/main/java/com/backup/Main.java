@@ -111,7 +111,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
     static  void sendChatMessage(String message){
         MutableText chatMessage=MutableText.of(new LiteralTextContent(message));
-        pm.broadcast(chatMessage, MessageType.SYSTEM);
+        pm.broadcast(chatMessage, false);
     }
 
     static void backup(String cause){
