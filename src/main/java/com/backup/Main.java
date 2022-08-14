@@ -74,7 +74,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             cfs = new Scanner(config);
         } catch (Throwable e) {
             try {
-                new File("config/").mkdir();
+                new File("config").mkdir();
                 FileWriter mr = new FileWriter("config/backup.cfg");
                 mr.write("backup destination folder=\nhours between backups=6");
                 mr.close();
