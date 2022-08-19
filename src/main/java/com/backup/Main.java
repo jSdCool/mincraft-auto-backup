@@ -33,7 +33,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     static boolean savingWasDisabled=false,tenSeccondWarning=false;
     static long nextBackupTime;
     static float timeBetweenBackups;
-    static boolean flush=false;
+    static boolean flush=false,enabled=true;
 
     @Override
     public void onInitialize() {
@@ -66,7 +66,46 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
                 backup("manual");
                 return 1;
-            }));});
+            })
+                    .then(literal("enable").executes(context -> {
+                        enabled=true;
+                                context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("auto backups enabled")),true);
+                        return 1;
+                    }))
+                    .then(literal("disable").executes(context -> {
+                        enabled=false;
+                        context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("auto backups disabled")),true);
+                        return 1;
+                    }))
+                    .then(literal("enable_flush").executes(context -> {
+                        flush=true;
+                        try {
+                            FileWriter mr = new FileWriter("config/backup.cfg");
+                            mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=true");
+                            mr.close();
+                        } catch (IOException i){
+                            context.getSource().sendError(MutableText.of(new LiteralTextContent("IOException see server logs for more info")));
+                            i.printStackTrace();
+                            return 0;
+                        }
+                        context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("save flushing enabled")),true);
+                        return 1;
+                    }))
+                    .then(literal("disable_flush").executes(context -> {
+                        flush=false;
+                        try {
+                            FileWriter mr = new FileWriter("config/backup.cfg");
+                            mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=false");
+                            mr.close();
+                        } catch (IOException i){
+                            context.getSource().sendError(MutableText.of(new LiteralTextContent("IOException see server logs for more info")));
+                            i.printStackTrace();
+                            return 0;
+                        }
+                        context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("save flushing disabled")),true);
+                        return 1;
+                    }))
+            );});
 
         File config;
         Scanner cfs=new Scanner("beans");
@@ -94,16 +133,19 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             String cfgLine=cfs.nextLine();
             if(cfgLine.startsWith("backup destination folder=")){
                 destinationFolder=cfgLine.substring(26);
+                LOGGER.info("backup destination set to: "+destinationFolder);
                 continue;
             }
             if(cfgLine.startsWith("hours between backups=")){
                 timeBetweenBackups=Float.parseFloat(cfgLine.substring(22));
                 nextBackupTime=(long)(curMillisTime()+3600000*timeBetweenBackups);
+                LOGGER.info("time between backups set to: "+timeBetweenBackups+" hours");
                 continue;
             }
             if(cfgLine.startsWith("flush=")) {
                 flush = cfgLine.substring("flush=".length()).equals("true") || cfgLine.substring("flush=".length()).equals("True") || cfgLine.substring("flush=".length()).equals("TRUE");
                 hasFlush = true;
+                LOGGER.info("flush set to: "+flush);
             }
 
         }
