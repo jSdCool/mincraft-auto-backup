@@ -20,14 +20,17 @@ public class Backup extends Thread{
 
 
     public void run(){
+        //System.out.println("backup thread started");
         long programStart = System.nanoTime();//note the program start time
         //Main.sendChatMessage("starting backup");
         scanForFiles(source,"");//Discover all the file that need to be copied
         total=fileIndex.size();//note how many file there are
+        //System.out.println("indexing started");
         for(int i=0;i<numOfThreads;i++) {//create all the requested threads
             threads.add(new CopyThread());
             threads.get(i).start();
         }
+        //System.out.println("indexing finished starting copy");
         long copyStart = System.nanoTime();//note the time that copying starts
         while(fileIndex.size()>0) {//while there are still more unassigned files that need to be copied
             for(int i=0;i<threads.size();i++) {//check all the threads

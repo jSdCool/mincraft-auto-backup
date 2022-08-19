@@ -33,6 +33,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     static boolean savingWasDisabled=false,tenSeccondWarning=false;
     static long nextBackupTime;
     static float timeBetweenBackups;
+    static boolean flush=false;
 
     @Override
     public void onInitialize() {
@@ -76,7 +77,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             try {
                 new File("config").mkdir();
                 FileWriter mr = new FileWriter("config/backup.cfg");
-                mr.write("backup destination folder=\nhours between backups=6");
+                mr.write("backup destination folder=\nhours between backups=6\nflush=true");
                 mr.close();
                 System.out.println("config file created.");
 
@@ -88,6 +89,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             System.out.println("\n\n\nconfig file created. populate the fields and then restart this server.\n\n\n");
             throw new RuntimeException("config file created, please fill out the config file");
         }
+        boolean hasFlush=false;
         while(cfs.hasNextLine()) {
             String cfgLine=cfs.nextLine();
             if(cfgLine.startsWith("backup destination folder=")){
@@ -99,7 +101,20 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                 nextBackupTime=(long)(curMillisTime()+3600000*timeBetweenBackups);
                 continue;
             }
+            if(cfgLine.startsWith("flush=")) {
+                flush = cfgLine.substring("flush=".length()).equals("true") || cfgLine.substring("flush=".length()).equals("True") || cfgLine.substring("flush=".length()).equals("TRUE");
+                hasFlush = true;
+            }
 
+        }
+        if(!hasFlush){
+            try {
+                FileWriter mr = new FileWriter("config/backup.cfg");
+                mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=true");
+                mr.close();
+            } catch (IOException i){
+
+            }
         }
         cfs.close();
 
@@ -120,13 +135,16 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         else
             sendChatMessage("server backup started");
         disableAutoSave();
-        ms.saveAll(true, true, true);
+        if(flush) {
+            LOGGER.info("if the server freezes for too long then disable flush");
+        }
+        ms.saveAll(true, flush, true);
         Date date = new Date();
         SimpleDateFormat formatter1 = new SimpleDateFormat("yy/MM/dd"),formatter2=new SimpleDateFormat("ddMMyy");
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
         Backup backup=new Backup(worldFolder,destinationFolder+"/"+dateFolder+"/"+folderName);
         backup.start();
-
+        //System.out.println("end of backup function");
     }
 
     static void disableAutoSave(){
@@ -166,6 +184,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             tenSeccondWarning=false;
             nextBackupTime=(long)(curMillisTime()+3600000*timeBetweenBackups);
             backup("");
+            //System.out.println("end of backup tick");
         }
     }
 
