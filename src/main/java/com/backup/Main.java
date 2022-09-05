@@ -2,10 +2,8 @@ package com.backup;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.network.message.MessageType;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.world.ServerWorld;
@@ -154,7 +152,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                 FileWriter mr = new FileWriter("config/backup.cfg");
                 mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=true");
                 mr.close();
-            } catch (IOException i){
+            } catch (IOException ignored){
 
             }
         }
@@ -172,7 +170,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     }
 
     static void backup(String cause){
-        if(cause!="")
+        if(!cause.equals(""))
             sendChatMessage("server backup started ("+cause+")");
         else
             sendChatMessage("server backup started");
@@ -194,12 +192,14 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
         while(var3.hasNext()) {
             ServerWorld serverWorld = (ServerWorld)var3.next();
+            if(serverWorld.savingDisabled)
+                savingWasDisabled=true;
+
             if (serverWorld != null && !serverWorld.savingDisabled) {
                 serverWorld.savingDisabled = true;
                 savingWasDisabled = false;
             }
-            if(serverWorld.savingDisabled)
-                savingWasDisabled=true;
+
         }
     }
     static void enableAutoSave(){
