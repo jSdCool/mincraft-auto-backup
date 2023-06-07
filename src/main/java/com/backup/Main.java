@@ -67,12 +67,12 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             })
                     .then(literal("enable").executes(context -> {
                         enabled=true;
-                                context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("auto backups enabled")),true);
+                                context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("auto backups enabled")),true);
                         return 1;
                     }))
                     .then(literal("disable").executes(context -> {
                         enabled=false;
-                        context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("auto backups disabled")),true);
+                        context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("auto backups disabled")),true);
                         return 1;
                     }))
                     .then(literal("enable_flush").executes(context -> {
@@ -86,7 +86,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                             i.printStackTrace();
                             return 0;
                         }
-                        context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("save flushing enabled")),true);
+                        context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("save flushing enabled")),true);
                         return 1;
                     }))
                     .then(literal("disable_flush").executes(context -> {
@@ -100,7 +100,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                             i.printStackTrace();
                             return 0;
                         }
-                        context.getSource().sendFeedback(MutableText.of(new LiteralTextContent("save flushing disabled")),true);
+                        context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("save flushing disabled")),true);
                         return 1;
                     }))
             );});
