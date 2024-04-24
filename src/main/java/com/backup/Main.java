@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.LiteralTextContent;
+import net.minecraft.text.PlainTextContent.Literal;
 import net.minecraft.text.MutableText;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +26,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     // This logger is used to write text to the console and the log file.
     // It is considered best practice to use your mod id as the logger's name.
     // That way, it's clear which mod wrote info, warnings, and errors.
-    public static final Logger LOGGER = LoggerFactory.getLogger("modid");
+    public static final Logger LOGGER = LoggerFactory.getLogger("backup");
     static String worldFolder="",destinationFolder="";
     static boolean savingWasDisabled=false,tenSeccondWarning=false;
     static long nextBackupTime;
@@ -67,12 +67,12 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             })
                     .then(literal("enable").executes(context -> {
                         enabled=true;
-                                context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("auto backups enabled")),true);
+                                context.getSource().sendFeedback(()->MutableText.of(new Literal("auto backups enabled")),true);
                         return 1;
                     }))
                     .then(literal("disable").executes(context -> {
                         enabled=false;
-                        context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("auto backups disabled")),true);
+                        context.getSource().sendFeedback(()->MutableText.of(new Literal("auto backups disabled")),true);
                         return 1;
                     }))
                     .then(literal("enable_flush").executes(context -> {
@@ -82,11 +82,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                             mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=true");
                             mr.close();
                         } catch (IOException i){
-                            context.getSource().sendError(MutableText.of(new LiteralTextContent("IOException see server logs for more info")));
+                            context.getSource().sendError(MutableText.of(new Literal("IOException see server logs for more info")));
                             i.printStackTrace();
                             return 0;
                         }
-                        context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("save flushing enabled")),true);
+                        context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing enabled")),true);
                         return 1;
                     }))
                     .then(literal("disable_flush").executes(context -> {
@@ -96,11 +96,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                             mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=false");
                             mr.close();
                         } catch (IOException i){
-                            context.getSource().sendError(MutableText.of(new LiteralTextContent("IOException see server logs for more info")));
+                            context.getSource().sendError(MutableText.of(new Literal("IOException see server logs for more info")));
                             i.printStackTrace();
                             return 0;
                         }
-                        context.getSource().sendFeedback(()->MutableText.of(new LiteralTextContent("save flushing disabled")),true);
+                        context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
                         return 1;
                     }))
             );});
@@ -165,7 +165,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     static PlayerManager pm;
 
     static  void sendChatMessage(String message){
-        MutableText chatMessage=MutableText.of(new LiteralTextContent(message));
+        MutableText chatMessage=MutableText.of(new Literal(message));
         pm.broadcast(chatMessage, false);
     }
 
