@@ -32,6 +32,8 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     static float timeBetweenBackups;
     static boolean flush=false,enabled=true;
 
+    static CompressionType compressionType;
+
     @Override
     public void onInitialize() {
         // This code runs as soon as Minecraft is in a mod-load-ready state.
@@ -132,6 +134,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             throw new RuntimeException("config file created, please fill out the config file");
         }
         boolean hasFlush=false;
+        boolean hasCompressionType =false;
         while(cfs.hasNextLine()) {
             String cfgLine=cfs.nextLine();
             if(cfgLine.startsWith("backup destination folder=")){
@@ -150,12 +153,33 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                 hasFlush = true;
                 LOGGER.info("flush set to: "+flush);
             }
+            if(cfgLine.startsWith("compression=")){
+                hasCompressionType=true;
+                String typeString  = cfgLine.substring("compression=".length());
+                typeString = typeString.trim();
+                typeString = typeString.toLowerCase();
+                if (typeString.equals("zip")) {
+                    compressionType = CompressionType.ZIP;
+                } else {
+                    compressionType = CompressionType.NONE;
+                }
+            }
 
         }
         if(!hasFlush){
             try {
                 FileWriter mr = new FileWriter("config/backup.cfg");
-                mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=true");
+                mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush=true\ncompression=NONE");
+                mr.close();
+            } catch (IOException ignored){
+
+            }
+        }
+        if(!hasCompressionType){
+            compressionType = CompressionType.NONE;
+            try {
+                FileWriter mr = new FileWriter("config/backup.cfg");
+                mr.write("backup destination folder=" + destinationFolder + "\nhours between backups=" + timeBetweenBackups + "\nflush="+flush+"\ncompression=NONE");
                 mr.close();
             } catch (IOException ignored){
 
@@ -174,6 +198,12 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         pm.broadcast(chatMessage, false);
     }
 
+    static  void sendChatErrorMessage(String message){
+        MutableText chatMessage=MutableText.of(new Literal(message));
+        chatMessage.withColor(0xFFFF0000);//red
+        pm.broadcast(chatMessage, false);
+    }
+
     static void backup(String cause){
         if(!cause.isEmpty())
             sendChatMessage("server backup started ("+cause+")");
@@ -187,7 +217,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         Date date = new Date();
         SimpleDateFormat formatter1 = new SimpleDateFormat("yy/MM/dd"),formatter2=new SimpleDateFormat("ddMMyy");
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
-        Backup backup=new Backup(worldFolder,destinationFolder+"/"+dateFolder+"/"+folderName,CompressionType.NONE);
+        Backup backup=new Backup(worldFolder,destinationFolder+"/"+dateFolder+"/"+folderName,compressionType);
         backup.start();
         //System.out.println("end of backup function");
     }

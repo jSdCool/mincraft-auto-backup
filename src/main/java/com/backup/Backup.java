@@ -1,13 +1,17 @@
 package com.backup;
 
-import java.io.File;
+import java.io.*;
 import java.util.ArrayList;
+import java.util.Random;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class Backup extends Thread{
     static ArrayList<String> fileIndex=new ArrayList<>();
     static String source,destination;
     static int completed=0,total=0,numOfThreads=4,batchSize=10;
     static ArrayList<CopyThread> threads=new ArrayList<>();
+    boolean success =true;
 
     CompressionType compressionType;
 
@@ -28,31 +32,35 @@ public class Backup extends Thread{
         //Main.sendChatMessage("starting backup");
         scanForFiles(source,"");//Discover all the file that need to be copied
         total=fileIndex.size();//note how many file there are
+
+
         //System.out.println("indexing started");
-        for(int i=0;i<numOfThreads;i++) {//create all the requested threads
-            threads.add(new CopyThread());
-            threads.get(i).start();
-        }
+
         //System.out.println("indexing finished starting copy");
         long copyStart = System.nanoTime();//note the time that copying starts
-        while(!fileIndex.isEmpty()) {//while there are still more unassigned files that need to be copied
-            for(int i=0;i<threads.size();i++) {//check all the threads
-                if(!threads.get(i).isAlive()) {//restart the thread if it died
-                    threads.set(i, new CopyThread());
+
+        switch(compressionType){
+            case NONE -> {
+                //if using no compression. use the old simple file copying method
+
+                for(int i=0;i<numOfThreads;i++) {//create all the requested threads
+                    threads.add(new CopyThread());
                     threads.get(i).start();
                 }
-                if(!threads.get(i).working) {//if the thread needs more work to do than give it more work
-                    threads.get(i).toCopy=createNextJob();
-                    threads.get(i).working=true;
-                }
+
+                backupNoCompression();
+            }
+            case ZIP -> {
+                //if using ZIP compression. use the zip backup method
+                backupZipCompression();
             }
         }
-        for (CopyThread thread : threads) {//tell all threads that there will be no more work once they finish
-            thread.endReaddy = true;
+        if(!success){
+            Main.sendChatErrorMessage("Backup Failed! see server logs for mor details");
+            Main.enableAutoSave();
+            return;
         }
-        while(threadsRunning()) {//wait for all the threads to finish copying files
-            Math.random();//prevent the thread from being put to sleep for being inactive
-        }
+
         long programEndTime=System.nanoTime();//note the time at witch the copying finished
         long totalTime=(programEndTime-programStart)/1000000,indexTime=(copyStart-programStart)/1000000,copyTime=(programEndTime-copyStart)/1000000;//calculates the time things took
         Main.sendChatMessage("backup completed in " +totalTime+"ms");
@@ -82,6 +90,74 @@ public class Backup extends Thread{
             }
         }
 
+    }
+
+    /** backup the world by compressing its files into a zip file
+     */
+    private void backupZipCompression(){
+        //System.out.println("sourceFolder: "+source);
+        //System.out.println("dest folder: "+destination);
+        String currFile = "";
+        try(ZipOutputStream zipOut = new ZipOutputStream(new FileOutputStream(destination+".zip"))){
+
+            for(String file :fileIndex){
+                currFile = file;
+                //locked file is not good for backing up
+                //explicitly don nothing if encountering this file
+                if(file.equals("session.lock")){
+                    continue;
+                }
+                String entryName = file;
+                //remove the leading / in case of a folder so the compressed folder shows up correctly in the resultant file
+                if(entryName.startsWith("/")){
+                    entryName = entryName.substring(1);
+                }
+
+                //create the next file entry
+                ZipEntry ze = new ZipEntry(entryName);
+                //add it ti the archive
+                zipOut.putNextEntry(ze);
+                //read the file content into the archive
+
+                FileInputStream contentIn = new FileInputStream(source+"/"+file);
+                byte []buffer = new byte[1024];
+                int len;
+                while((len = contentIn.read(buffer)) >0){
+                    zipOut.write(buffer,0,len);
+                }
+                //end the data for this entry
+                zipOut.closeEntry();
+                //close the input stream
+                contentIn.close();
+
+            }
+        } catch (IOException e) {
+            Main.LOGGER.error("Exception while compressing world! last attempted file: "+currFile,e);
+            success=false;
+        }
+    }
+
+    /**back up the world by simply copying all of its files to a new location
+     */
+    private static void backupNoCompression() {
+        while(!fileIndex.isEmpty()) {//while there are still more unassigned files that need to be copied
+            for(int i=0;i<threads.size();i++) {//check all the threads
+                if(!threads.get(i).isAlive()) {//restart the thread if it died
+                    threads.set(i, new CopyThread());
+                    threads.get(i).start();
+                }
+                if(!threads.get(i).working) {//if the thread needs more work to do than give it more work
+                    threads.get(i).toCopy=createNextJob();
+                    threads.get(i).working=true;
+                }
+            }
+        }
+        for (CopyThread thread : threads) {//tell all threads that there will be no more work once they finish
+            thread.endReaddy = true;
+        }
+        while(threadsRunning()) {//wait for all the threads to finish copying files
+            Math.random();//prevent the thread from being put to sleep for being inactive
+        }
     }
 
     /**gets a list of files that need to be copied to send to a thread
