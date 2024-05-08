@@ -9,13 +9,16 @@ public class Backup extends Thread{
     static int completed=0,total=0,numOfThreads=4,batchSize=10;
     static ArrayList<CopyThread> threads=new ArrayList<>();
 
-    Backup(String worldFolder,String dest){
+    CompressionType compressionType;
+
+    Backup(String worldFolder,String dest,CompressionType compression){
         super("backup controller thread");
         completed=0;
         total=0;
         source=worldFolder;
         destination=dest;
         threads=new ArrayList<>();
+        compressionType = compression;
     }
 
 
@@ -32,7 +35,7 @@ public class Backup extends Thread{
         }
         //System.out.println("indexing finished starting copy");
         long copyStart = System.nanoTime();//note the time that copying starts
-        while(fileIndex.size()>0) {//while there are still more unassigned files that need to be copied
+        while(!fileIndex.isEmpty()) {//while there are still more unassigned files that need to be copied
             for(int i=0;i<threads.size();i++) {//check all the threads
                 if(!threads.get(i).isAlive()) {//restart the thread if it died
                     threads.set(i, new CopyThread());
@@ -44,11 +47,11 @@ public class Backup extends Thread{
                 }
             }
         }
-        for(int i=0;i<threads.size();i++) {//tell all threads that there will be no more work once they finish
-            threads.get(i).endReaddy=true;
+        for (CopyThread thread : threads) {//tell all threads that there will be no more work once they finish
+            thread.endReaddy = true;
         }
         while(threadsRunning()) {//wait for all the threads to finish copying files
-        Math.random();//prevent the thread from being put to sleep for being inactive
+            Math.random();//prevent the thread from being put to sleep for being inactive
         }
         long programEndTime=System.nanoTime();//note the time at witch the copying finished
         long totalTime=(programEndTime-programStart)/1000000,indexTime=(copyStart-programStart)/1000000,copyTime=(programEndTime-copyStart)/1000000;//calculates the time things took
@@ -64,17 +67,17 @@ public class Backup extends Thread{
      */
     public static void scanForFiles(String parentPath,String subPath) {
         String[] files=new File(parentPath+"/"+subPath).list();//get a list of all things in the current folder
-        for(int i=0;i<files.length;i++) {//loop through all the things in the current folder
+        for (String file : files) {//loop through all the things in the current folder
 
-            if(new File(parentPath+"/"+subPath+"/"+files[i]).list()!=null) {//check weather the current thing is a folder or a file
-                scanForFiles(parentPath,subPath+"/"+files[i]);//if it is a folder then scan through that folder for more files
+            if (new File(parentPath + "/" + subPath + "/" + file).list() != null) {//check weather the current thing is a folder or a file
+                scanForFiles(parentPath, subPath + "/" + file);//if it is a folder then scan through that folder for more files
 
-            }else {//if it is a file
+            } else {//if it is a file
                 //add this file to the to copy index
-                if(subPath.equals("")) {
-                    fileIndex.add(files[i]);
-                }else {
-                    fileIndex.add(subPath+"/"+files[i]);
+                if (subPath.isEmpty()) {
+                    fileIndex.add(file);
+                } else {
+                    fileIndex.add(subPath + "/" + file);
                 }
             }
         }
@@ -87,8 +90,8 @@ public class Backup extends Thread{
      */
     static ArrayList<String> createNextJob(){
         ArrayList<String> batch=new ArrayList<>();
-        for(int i=0;i<batchSize&&fileIndex.size()>0;i++) {//use the batch size to determine the number of items to send to each thread
-            batch.add(fileIndex.remove(0));
+        for(int i = 0; i<batchSize&& !fileIndex.isEmpty(); i++) {//use the batch size to determine the number of items to send to each thread
+            batch.add(fileIndex.removeFirst());
         }
 
         return batch;
@@ -100,8 +103,8 @@ public class Backup extends Thread{
      * @return weather any thread is still running
      */
     static boolean threadsRunning() {
-        for(int i=0;i<threads.size();i++) {
-            if(threads.get(i).isAlive())
+        for (CopyThread thread : threads) {
+            if (thread.isAlive())
                 return true;
         }
         return false;
