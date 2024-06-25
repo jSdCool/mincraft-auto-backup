@@ -1,8 +1,10 @@
 package com.backup;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Random;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -50,10 +52,11 @@ public class Backup extends Thread{
 
                 backupNoCompression();
             }
-            case ZIP -> {
-                //if using ZIP compression. use the zip backup method
-                backupZipCompression();
-            }
+            case ZIP -> //if using ZIP compression. use the zip backup method
+                    backupZipCompression();
+
+            case GZIP -> //if using GZIP compression
+                    backupGZipCompression();
         }
         if(!success){
             Main.sendChatErrorMessage("Backup Failed! see server logs for mor details");
@@ -89,6 +92,18 @@ public class Backup extends Thread{
                 }
             }
         }
+
+    }
+
+    /** backup the world by compressing its files into a tar.gz file
+     */
+    private void backupGZipCompression(){
+        String currFile = "";
+
+        //the classes default required to do this apparently do not exist in minecraft
+        //inorder to do this I will need to make my own tar implementation
+        //then I can use the built-in GZIP and LZ4 compressors
+
 
     }
 
