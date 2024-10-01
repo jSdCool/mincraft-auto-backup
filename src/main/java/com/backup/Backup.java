@@ -35,6 +35,7 @@ public class Backup extends Thread{
 
 
     public void run(){
+        fileIndex.clear();
         //System.out.println("backup thread started");
         long programStart = System.nanoTime();//note the program start time
         //Main.sendChatMessage("starting backup");
@@ -86,6 +87,7 @@ public class Backup extends Thread{
      * @param subPath the path of the current sub folder that is being looked through
      */
     public static void scanForFiles(String parentPath,String subPath) {
+
         String[] files=new File(parentPath+"/"+subPath).list();//get a list of all things in the current folder
         assert files != null;
         for (String file : files) {//loop through all the things in the current folder
@@ -144,9 +146,11 @@ public class Backup extends Thread{
 
     private void backupWithTarBasedOutput(OutputStream out,boolean print){
         String currFile = "";
+        int numCompressed =0;
         try{
             TarArchiveOutputStream output = new TarArchiveOutputStream(out);
             for(String file :fileIndex){
+                numCompressed++;
                 currFile = file;
                 if(file.equals("session.lock")){
                     continue;
@@ -158,7 +162,7 @@ public class Backup extends Thread{
                 TarArchiveEntry te = new TarArchiveEntry(new File(source+"/"+file),entryName);
                 output.putArchiveEntry(te);
                 if(print)
-                    Main.LOGGER.info("Compressing: "+file);
+                    Main.LOGGER.info("Compressing: "+file+" "+numCompressed+"/"+fileIndex.size());
                 Files.copy(Path.of(source+"/"+file),output);
                 output.closeArchiveEntry();
             }

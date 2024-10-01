@@ -118,11 +118,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                     context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
                     return 1;
                 }))
-                .then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()))).executes(context -> {
+                .then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()).executes(context -> {
                     CompressionType compression = context.getArgument("compression",CompressionType.class);
                     backup("manual",compression);
                     return 1;
-                })
+                })))
         ));
 
         File config;
