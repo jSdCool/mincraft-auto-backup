@@ -1,14 +1,20 @@
 package com.backup;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.command.argument.ArgumentTypes;
+import net.minecraft.command.argument.EnumArgumentType;
+import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
+import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.PlainTextContent.Literal;
 import net.minecraft.text.MutableText;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -65,9 +71,15 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             return;
         }
 
+        ArgumentTypeRegistry.registerArgumentType(
+                Identifier.of("backup","compression_type"),
+                CompressionArgumentType.class,
+                ConstantArgumentSerializer.of(CompressionArgumentType::new)
+        );
+
         CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) ->
                 dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
-            backup("manual");
+            backup("manual",compressionType);
             return 1;
         })
                 .then(literal("enable").executes(context -> {
@@ -108,6 +120,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                     context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
                     return 1;
                 }))
+                .then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()))).executes(context -> {
+                    CompressionType compression = context.getArgument("compression",CompressionType.class);
+                    backup("manual",compression);
+                    return 1;
+                })
         ));
 
         File config;
@@ -158,10 +175,13 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                 String typeString  = cfgLine.substring("compression=".length());
                 typeString = typeString.trim();
                 typeString = typeString.toLowerCase();
-                if (typeString.equals("zip")) {
-                    compressionType = CompressionType.ZIP;
-                } else {
-                    compressionType = CompressionType.NONE;
+                switch (typeString) {
+                    case "zip" -> compressionType = CompressionType.ZIP;
+                    case "gzip" -> compressionType = CompressionType.GZIP;
+                    case "lz4" -> compressionType = CompressionType.LZ4;
+                    case "xz" -> compressionType = CompressionType.XZ;
+                    case "lzma" -> compressionType = CompressionType.LZMA;
+                    default -> compressionType = CompressionType.NONE;
                 }
             }
 
@@ -204,7 +224,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         pm.broadcast(chatMessage, false);
     }
 
-    static void backup(String cause){
+    static void backup(String cause,CompressionType compression){
         if(!cause.isEmpty())
             sendChatMessage("server backup started ("+cause+")");
         else
@@ -217,7 +237,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         Date date = new Date();
         SimpleDateFormat formatter1 = new SimpleDateFormat("yy/MM/dd"),formatter2=new SimpleDateFormat("ddMMyy");
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
-        Backup backup=new Backup(worldFolder,destinationFolder+"/"+dateFolder+"/"+folderName,compressionType);
+        Backup backup=new Backup(worldFolder,destinationFolder+"/"+dateFolder+"/"+folderName,compression);
         backup.start();
         //System.out.println("end of backup function");
     }
@@ -256,7 +276,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         if(timeLeft<0){
             tenSeccondWarning=false;
             nextBackupTime=(long)(curMillisTime()+3600000*timeBetweenBackups);
-            backup("");
+            backup("",compressionType);
             //System.out.println("end of backup tick");
         }
     }

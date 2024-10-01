@@ -1,5 +1,12 @@
 package com.backup;
 
+import net.jpountz.lz4.LZ4BlockOutputStream;
+import net.jpountz.lz4.LZ4FrameOutputStream;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+import org.apache.commons.compress.compressors.lzma.LZMACompressorOutputStream;
+import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -57,6 +64,9 @@ public class Backup extends Thread{
 
             case GZIP -> //if using GZIP compression
                     backupGZipCompression();
+            case LZ4 -> backupLZ4Compression();
+            case XZ -> backupXzCompression();
+            case LZMA -> backupLzmaCompression();
         }
         if(!success){
             Main.sendChatErrorMessage("Backup Failed! see server logs for mor details");
@@ -95,16 +105,67 @@ public class Backup extends Thread{
 
     }
 
+    private void backupLzmaCompression(){
+        try(OutputStream output = new LZMACompressorOutputStream(new FileOutputStream(destination+".tar.lzma"))){
+            backupWithTarBasedOutput(output,true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    private void backupXzCompression(){//565,390
+        try(OutputStream output = new XZCompressorOutputStream(new FileOutputStream(destination+".tar.xz"))){
+            backupWithTarBasedOutput(output,true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    private void backupLZ4Compression(){
+        try(OutputStream output = new LZ4FrameOutputStream(new FileOutputStream(destination+".tar.lz4"))){
+            backupWithTarBasedOutput(output,false);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     /** backup the world by compressing its files into a tar.gz file
      */
     private void backupGZipCompression(){
+
+        try(OutputStream output = new GZIPOutputStream(new FileOutputStream(destination+".tar.gz"))) {
+            backupWithTarBasedOutput(output,false);
+        } catch (IOException e) {
+            Main.LOGGER.error("Exception while attempting to create the backup output stream",e);
+            success=false;
+        }
+
+    }
+
+    private void backupWithTarBasedOutput(OutputStream out,boolean print){
         String currFile = "";
-
-        //the classes default required to do this apparently do not exist in minecraft
-        //inorder to do this I will need to make my own tar implementation
-        //then I can use the built-in GZIP and LZ4 compressors
-
-
+        try{
+            TarArchiveOutputStream output = new TarArchiveOutputStream(out);
+            for(String file :fileIndex){
+                currFile = file;
+                if(file.equals("session.lock")){
+                    continue;
+                }
+                String entryName = file;
+                if(entryName.startsWith("/")){
+                    entryName = entryName.substring(1);
+                }
+                TarArchiveEntry te = new TarArchiveEntry(new File(source+"/"+file),entryName);
+                output.putArchiveEntry(te);
+                if(print)
+                    Main.LOGGER.info("Compressing: "+file);
+                Files.copy(Path.of(source+"/"+file),output);
+                output.closeArchiveEntry();
+            }
+        }catch (IOException e){
+            Main.LOGGER.error("Exception while compressing world! last attempted file: "+currFile,e);
+            success=false;
+        }
     }
 
     /** backup the world by compressing its files into a zip file
