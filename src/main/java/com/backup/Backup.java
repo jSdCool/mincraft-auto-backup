@@ -1,6 +1,5 @@
 package com.backup;
 
-import net.jpountz.lz4.LZ4BlockOutputStream;
 import net.jpountz.lz4.LZ4FrameOutputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -88,6 +87,7 @@ public class Backup extends Thread{
      */
     public static void scanForFiles(String parentPath,String subPath) {
         String[] files=new File(parentPath+"/"+subPath).list();//get a list of all things in the current folder
+        assert files != null;
         for (String file : files) {//loop through all the things in the current folder
 
             if (new File(parentPath + "/" + subPath + "/" + file).list() != null) {//check weather the current thing is a folder or a file
@@ -231,8 +231,13 @@ public class Backup extends Thread{
         for (CopyThread thread : threads) {//tell all threads that there will be no more work once they finish
             thread.endReaddy = true;
         }
-        while(threadsRunning()) {//wait for all the threads to finish copying files
-            Math.random();//prevent the thread from being put to sleep for being inactive
+        if(threadsRunning()){
+            for (CopyThread thread: threads){
+                try {
+                    thread.join();//wait for all thread to stop
+                } catch (InterruptedException ignored) {
+                }
+            }
         }
     }
 

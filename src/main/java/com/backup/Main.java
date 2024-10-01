@@ -5,8 +5,6 @@ import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.command.argument.ArgumentTypes;
-import net.minecraft.command.argument.EnumArgumentType;
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
@@ -218,6 +216,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         pm.broadcast(chatMessage, false);
     }
 
+    @SuppressWarnings("all")
     static  void sendChatErrorMessage(String message){
         MutableText chatMessage=MutableText.of(new Literal(message));
         chatMessage.withColor(0xFFFF0000);//red

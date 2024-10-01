@@ -1,7 +1,6 @@
 package com.backup;
 
 import com.mojang.serialization.Codec;
-import net.minecraft.util.BlockMirror;
 import net.minecraft.util.StringIdentifiable;
 
 public enum CompressionType implements StringIdentifiable {
