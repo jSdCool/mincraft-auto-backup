@@ -2,6 +2,20 @@
 
 automatically backs up your Minecraft server
 
+NOTE: This is a server side only mod, it will not work on the client
+
+## setup
+After installing the mod on your server:
+1. Launch the server
+2. Stop the server
+3. Edit config/backup.cfg
+4. Set the backup destination to the folder path where backups should be placed
+5. Set the hours between backups to your desired values
+6. Set compression to your desired value from the list below
+7. Set enabled to true
+8. Save the config file
+9. Launch the server
+
 ## Compression
 We offer the following options for compression:  
 - NONE  
