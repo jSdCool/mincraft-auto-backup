@@ -21,44 +21,46 @@ public class CopyThread extends Thread {
 	ArrayList<String> toCopy = new ArrayList<>();
 	boolean shouldRun = true, working = false, endReaddy = false;
 
+	@SuppressWarnings("ResultOfMethodCallIgnored")
 	public void run() {
 		while (shouldRun) {
 			Math.random();//prevent this thread from being put to sleep for being "inactive"
-			if (toCopy.size() > 0) {
+			if (!toCopy.isEmpty()) {
 
 				copyFile(0);
 				Backup.completed++;//increase the number of copies completed
-				double precent = ((int) ((Backup.completed * 0.1 / Backup.total) * 10000)) / 10.0;//calculate the completion percent
-				toCopy.remove(0);
+				//double precent = ((int) ((Backup.completed * 0.1 / Backup.total) * 10000)) / 10.0;//calculate the completion percent
+				toCopy.removeFirst();
 
 
 			} else {
 				if (endReaddy)//if there are not more files that need to be coppied then kill the thread
 					return;
 			}
-			if (working && toCopy.size() == 0)
+			if (working && toCopy.isEmpty())
 				working = false;
 		}
 
 	}
 
+	@SuppressWarnings("ResultOfMethodCallIgnored")
 	void copyFile(int numOfTries) {
 		if(numOfTries>50) {
-			Main.LOGGER.error("failed to copy file " + toCopy.get(0));
+			Main.LOGGER.error("failed to copy file " + toCopy.getFirst());
 			return;
 		}
 		try {
-			String[] newDir = (Backup.destination + "/" + toCopy.get(0)).split("\\\\|/");
-			String destDir = "";
+			String[] newDir = (Backup.destination + "/" + toCopy.getFirst()).split("\\\\|/");
+			StringBuilder destDir = new StringBuilder();
 			for (int i = 0; i < newDir.length - 1; i++) {//get the path to the current file
-				destDir += newDir[i] + "/";
+				destDir.append(newDir[i]).append("/");
 			}
-			new File(destDir).mkdirs();//make the parent folder if it doesn't exist
-			File dest = new File(Backup.destination + "/" + toCopy.get(0));
+			new File(destDir.toString()).mkdirs();//make the parent folder if it doesn't exist
+			File dest = new File(Backup.destination + "/" + toCopy.getFirst());
 			if (dest.exists()) {//if the file already exists in the new location then delete the current version
 				dest.delete();
 			}
-			java.nio.file.Files.copy(new File(Backup.source + "/" + toCopy.get(0)).toPath(), dest.toPath());//copy the file `
+			java.nio.file.Files.copy(new File(Backup.source + "/" + toCopy.getFirst()).toPath(), dest.toPath());//copy the file `
 		} catch (IOException e) {//if it fails
 			copyFile(numOfTries+1);
 		}
