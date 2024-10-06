@@ -141,6 +141,8 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         Date date = new Date();
         SimpleDateFormat formatter1 = new SimpleDateFormat("yy/MM/dd"),formatter2=new SimpleDateFormat("ddMMyy");
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
+        //noinspection ResultOfMethodCallIgnored
+        new File(config.getBackupDestinationFolder()+"/"+dateFolder).mkdirs();
         Backup backup=new Backup(worldFolder, config.getBackupDestinationFolder()+"/"+dateFolder+"/"+folderName,compression);
         backup.start();
         //System.out.println("end of backup function");
