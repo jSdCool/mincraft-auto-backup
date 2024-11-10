@@ -76,6 +76,7 @@ public class Config {
     }
 
     private void save(){
+        new File("config").mkdirs();
         try( FileWriter mr = new FileWriter("config/backup.cfg")){
             ArrayList<String> configLines = new ArrayList<>();
             configLines.add("backup destination folder=" + backupDestinationFolder);

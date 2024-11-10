@@ -1,5 +1,6 @@
 package com.backup;
 
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -9,6 +10,7 @@ import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.CommandManager;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.PlainTextContent.Literal;
 import net.minecraft.text.MutableText;
@@ -72,12 +74,21 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             return;
         }
 
-        ArgumentTypeRegistry.registerArgumentType(
-                Identifier.of("backup","compression_type"),
-                CompressionArgumentType.class,
-                ConstantArgumentSerializer.of(CompressionArgumentType::new)
-        );
+        //ArgumentTypeRegistry.registerArgumentType(
+        //        Identifier.of("backup","compression_type"),
+        //        CompressionArgumentType.class,
+        //        ConstantArgumentSerializer.of(CompressionArgumentType::new)
+        //);
 
+        ArgumentBuilder<ServerCommandSource, ?> usingOptions = literal("using");
+        for(CompressionType type: CompressionType.values()){
+            usingOptions = usingOptions.then(literal(type.asString()).executes(context -> {
+                backup("manual",type);
+                return 1;
+            }));
+        }
+
+        ArgumentBuilder<ServerCommandSource, ?> finalUsingOptions = usingOptions;
         CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) ->
                 dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
             backup("manual",config.getCompressionType());
@@ -103,11 +114,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                     context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
                     return 1;
                 }))
-                .then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()).executes(context -> {
-                    CompressionType compression = context.getArgument("compression",CompressionType.class);
-                    backup("manual",compression);
-                    return 1;
-                })))
+                .then(finalUsingOptions)
         ));
 
         ServerTickEvents.END_SERVER_TICK.register( this);
