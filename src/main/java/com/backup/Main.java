@@ -1,11 +1,13 @@
 package com.backup;
 
+import com.mojang.brigadier.builder.ArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
+import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.PlainTextContent.Literal;
 import net.minecraft.text.MutableText;
@@ -68,13 +70,18 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             return;
         }
 
-        //ArgumentTypeRegistry.registerArgumentType(
-        //        Identifier.of("backup","compression_type"),
-        //        CompressionArgumentType.class,
-        //        ConstantArgumentSerializer.of(CompressionArgumentType::new)
-        //);
+        //create each separate option for the backup using command
+        ArgumentBuilder<ServerCommandSource, ?> usingOptions = literal("using");
+        for(CompressionType type :CompressionType.values()){
+            usingOptions=usingOptions.then(literal(type.asString()).executes(context -> {
+                backup("manual",type);
+                return 1;
+            }));
+        }
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) ->
+        final ArgumentBuilder<ServerCommandSource, ?> finalUsingOptions = usingOptions;
+
+        CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) -> {
                 dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
             backup("manual",config.getCompressionType());
             return 1;
@@ -99,12 +106,14 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                     context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
                     return 1;
                 }))
-                /*.then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()).executes(context -> {
+                .then(finalUsingOptions)
+                /*.then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()).executes(context -> {//the old system that requires everyone to have this mode, it was bad
                     CompressionType compression = context.getArgument("compression",CompressionType.class);
                     backup("manual",compression);
                     return 1;
                 })))*/
-        ));
+        );
+        });
 
         ServerTickEvents.END_SERVER_TICK.register( this);
     }//end of on initialize
@@ -139,6 +148,8 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
         //noinspection ResultOfMethodCallIgnored
         new File(config.getBackupDestinationFolder()+"/"+dateFolder).mkdirs();
+        //NOTE: you may get the following error here while testing in the IDE, I have no idea why it happens and the exported jar works just fine
+        //java.lang.NoClassDefFoundError: org/apache/commons/compress/compressors/lzma/LZMACompressorOutputStream
         Backup backup=new Backup(worldFolder, config.getBackupDestinationFolder()+"/"+dateFolder+"/"+folderName,compression);
         backup.start();
         //System.out.println("end of backup function");
