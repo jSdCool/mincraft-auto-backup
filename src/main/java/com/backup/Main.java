@@ -1,18 +1,14 @@
 package com.backup;
 
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
-import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.PlainTextContent.Literal;
 import net.minecraft.text.MutableText;
-import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -72,11 +68,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             return;
         }
 
-        ArgumentTypeRegistry.registerArgumentType(
-                Identifier.of("backup","compression_type"),
-                CompressionArgumentType.class,
-                ConstantArgumentSerializer.of(CompressionArgumentType::new)
-        );
+        //ArgumentTypeRegistry.registerArgumentType(
+        //        Identifier.of("backup","compression_type"),
+        //        CompressionArgumentType.class,
+        //        ConstantArgumentSerializer.of(CompressionArgumentType::new)
+        //);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) ->
                 dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
@@ -103,11 +99,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                     context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
                     return 1;
                 }))
-                .then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()).executes(context -> {
+                /*.then(literal("using").then(CommandManager.argument("compression", new CompressionArgumentType()).executes(context -> {
                     CompressionType compression = context.getArgument("compression",CompressionType.class);
                     backup("manual",compression);
                     return 1;
-                })))
+                })))*/
         ));
 
         ServerTickEvents.END_SERVER_TICK.register( this);
