@@ -26,4 +26,14 @@ public enum CompressionType implements StringIdentifiable {
     }
 
     public static final Codec<CompressionType> CODEC = StringIdentifiable.createCodec(CompressionType::values);
+
+    public static CompressionType of(String type){
+        for(CompressionType value : values()){
+            if(value.toString().equalsIgnoreCase(type)){
+                return value;
+
+            }
+        }
+        return null;
+    }
 }

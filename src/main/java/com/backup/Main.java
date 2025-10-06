@@ -11,6 +11,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.dedicated.management.IncomingRpcMethod;
+import net.minecraft.server.dedicated.management.RpcRequestParameter;
 import net.minecraft.server.dedicated.management.RpcResponseResult;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 import net.minecraft.server.world.ServerWorld;
@@ -82,7 +83,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         ArgumentBuilder<ServerCommandSource, ?> usingOptions = literal("using");
         for(CompressionType type :CompressionType.values()){
             usingOptions=usingOptions.then(literal(type.asString()).executes(context -> {
-                backup("manual",type);
+                backup("manual",type,config.getFlush());
                 return 1;
             }));
         }
@@ -91,7 +92,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
         CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) -> {
                 dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
-            backup("manual",config.getCompressionType());
+            backup("manual",config.getCompressionType(),config.getFlush());
             return 1;
         })
                 .then(literal("enable").executes(context -> {
@@ -125,6 +126,8 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
         ServerTickEvents.END_SERVER_TICK.register( this);
 
+
+
         IncomingRpcMethod.Parameterless<List<BackupRpcDispatcher.TestData>> testRpcCommand =  IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::test,BackupRpcDispatcher.TestData.CODEC.codec().listOf())
                 .description("PIss off this is a test")
                 .result(new RpcResponseResult("test", RpcSchema.NUMBER))
@@ -138,6 +141,19 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                 .result(new RpcResponseResult("result",RpcSchema.BOOLEAN))
                 .build();
         Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run"),rawBackupCommand);
+
+
+        IncomingRpcMethod.Parameterized<BackupRpcDispatcher.IncomingRpcRunInfo,List<BackupRpcDispatcher.StringResult>> paramBackupCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::runUsing,
+                        BackupRpcDispatcher.IncomingRpcRunInfo.CODEC.codec(),
+                        BackupRpcDispatcher.StringResult.CODEC.codec().listOf())
+                .description("Make a new backup with the provided settings")
+                .parameter(new RpcRequestParameter("using",BackupRpcDispatcher.USING_SCHEMA))
+                .result(new RpcResponseResult("result",RpcSchema.STRING))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run/using"),paramBackupCommand);
+
+
+
     }//end of on initialize
 
     static MinecraftServer ms;
@@ -155,16 +171,16 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         pm.broadcast(chatMessage, false);
     }
 
-    static void backup(String cause,CompressionType compression){
+    static void backup(String cause,CompressionType compression, boolean flush){
         if(!cause.isEmpty())
             sendChatMessage("server backup started ("+cause+")");
         else
             sendChatMessage("server backup started");
         disableAutoSave();
-        if(config.getFlush()) {
+        if(flush) {
             LOGGER.info("if the server freezes for too long then disable flush");
         }
-        ms.saveAll(true, config.getFlush(), true);
+        ms.saveAll(true, flush, true);
         Date date = new Date();
         SimpleDateFormat formatter1 = new SimpleDateFormat("yy/MM/dd"),formatter2=new SimpleDateFormat("ddMMyy");
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
@@ -212,7 +228,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             if (timeLeft < 0) {
                 tenSeccondWarning = false;
                 nextBackupTime = (long) (curMillisTime() + 3600000 * config.getHoursBetweenBackups());
-                backup("", config.getCompressionType());
+                backup("", config.getCompressionType(),config.getFlush());
                 //System.out.println("end of backup tick");
             }
         }
