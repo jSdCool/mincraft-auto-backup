@@ -5,12 +5,18 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.dedicated.management.IncomingRpcMethod;
+import net.minecraft.server.dedicated.management.RpcResponseResult;
+import net.minecraft.server.dedicated.management.schema.RpcSchema;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.PlainTextContent.Literal;
 import net.minecraft.text.MutableText;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -19,13 +25,15 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Scanner;
 
 public class Main implements ModInitializer, ServerTickEvents.EndTick {
     // This logger is used to write text to the console and the log file.
     // It is considered best practice to use your mod id as the logger's name.
     // That way, it's clear which mod wrote info, warnings, and errors.
-    public static final Logger LOGGER = LoggerFactory.getLogger("backup");
+    public static final String MODID = "backup";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MODID);
     static String worldFolder=""/*,destinationFolder=""*/;
     static boolean savingWasDisabled=false,tenSeccondWarning=false;
     static long nextBackupTime;
@@ -34,7 +42,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
     //static CompressionType compressionType;
 
-    static Config config;
+    public static Config config;
 
     @Override
     public void onInitialize() {
@@ -116,6 +124,20 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         });
 
         ServerTickEvents.END_SERVER_TICK.register( this);
+
+        IncomingRpcMethod.Parameterless<List<BackupRpcDispatcher.TestData>> testRpcCommand =  IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::test,BackupRpcDispatcher.TestData.CODEC.codec().listOf())
+                .description("PIss off this is a test")
+                .result(new RpcResponseResult("test", RpcSchema.NUMBER))
+                .build();
+
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"test"),testRpcCommand);
+
+        IncomingRpcMethod.Parameterless<List<BackupRpcDispatcher.BooleanResult>> rawBackupCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::run,
+                BackupRpcDispatcher.BooleanResult.CODEC.codec().listOf())
+                .description("Make a new backup with the configured settings")
+                .result(new RpcResponseResult("result",RpcSchema.BOOLEAN))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run"),rawBackupCommand);
     }//end of on initialize
 
     static MinecraftServer ms;
