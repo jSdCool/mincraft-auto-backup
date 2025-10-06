@@ -4,6 +4,9 @@
   "package": "com.backup.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "CompositeManagementListenerAccessor",
+    "NotificationManagementListenerAccessor",
+    "NotificationManagementListenerAccessor2"
   ],
   "client": [
   ],

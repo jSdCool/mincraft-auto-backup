@@ -79,6 +79,7 @@ public class Backup extends Thread{
         Main.sendChatMessage("backup completed in " +totalTime+"ms");
         Main.LOGGER.info("backup completed in: "+totalTime+"ms index time: "+indexTime+"ms copy time: "+copyTime+"ms");
         Main.enableAutoSave();
+        Main.sendManagementNotification(BackupRpcDispatcher.BACKUP_COMPLETED,totalTime);
     }
 
     /**Recursively scan folders for files to copy

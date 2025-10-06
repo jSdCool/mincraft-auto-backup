@@ -1,5 +1,8 @@
 package com.backup;
 
+import com.backup.mixin.CompositeManagementListenerAccessor;
+import com.backup.mixin.NotificationManagementListenerAccessor;
+import com.backup.mixin.NotificationManagementListenerAccessor2;
 import com.mojang.brigadier.builder.ArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -7,12 +10,17 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.server.dedicated.MinecraftDedicatedServer;
 import net.minecraft.server.dedicated.management.IncomingRpcMethod;
+import net.minecraft.server.dedicated.management.OutgoingRpcMethod;
 import net.minecraft.server.dedicated.management.RpcRequestParameter;
 import net.minecraft.server.dedicated.management.RpcResponseResult;
+import net.minecraft.server.dedicated.management.listener.CompositeManagementListener;
+import net.minecraft.server.dedicated.management.listener.ManagementListener;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.PlainTextContent.Literal;
@@ -152,6 +160,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
                 .build();
         Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run/using"),paramBackupCommand);
 
+        BackupRpcDispatcher.register();
 
 
     }//end of on initialize
@@ -176,6 +185,9 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
             sendChatMessage("server backup started ("+cause+")");
         else
             sendChatMessage("server backup started");
+
+        sendManagementNotification(BackupRpcDispatcher.BACKUP_STARTED);
+
         disableAutoSave();
         if(flush) {
             LOGGER.info("if the server freezes for too long then disable flush");
@@ -237,5 +249,32 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     static long curMillisTime(){
         return System.nanoTime()/1000000;
     }
+
+    public static void sendManagementNotification(RegistryEntry.Reference<? extends OutgoingRpcMethod<Void, ?>> method){
+        if(ms instanceof MinecraftDedicatedServer dms){
+            CompositeManagementListener listener = dms.getManagementListener();
+
+            List<ManagementListener> managementListeners = ((CompositeManagementListenerAccessor)listener).getListeners();
+
+            managementListeners.forEach( (managementListener -> {
+                NotificationManagementListenerAccessor notificationManagementListener = (NotificationManagementListenerAccessor) managementListener;
+                notificationManagementListener.callNotifyAll(method);
+            }));
+        }
+    }
+
+    public static <Params> void sendManagementNotification(RegistryEntry.Reference<? extends OutgoingRpcMethod<Params, ?>> method, Params params){
+        if(ms instanceof MinecraftDedicatedServer dms){
+            CompositeManagementListener listener = dms.getManagementListener();
+
+            List<ManagementListener> managementListeners = ((CompositeManagementListenerAccessor)listener).getListeners();
+
+            managementListeners.forEach( (managementListener -> {
+                NotificationManagementListenerAccessor2 notificationManagementListener = (NotificationManagementListenerAccessor2) managementListener;
+                notificationManagementListener.callNotifyAll(method,params);
+            }));
+        }
+    }
+
 
 }

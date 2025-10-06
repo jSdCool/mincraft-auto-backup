@@ -3,6 +3,9 @@ package com.backup;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.server.dedicated.management.OutgoingRpcMethod;
+import net.minecraft.server.dedicated.management.RpcRequestParameter;
 import net.minecraft.server.dedicated.management.dispatch.ManagementHandlerDispatcher;
 import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
@@ -13,7 +16,10 @@ import java.util.Optional;
 
 public class BackupRpcDispatcher {
 
-    static int testId = 0;
+    private static int testId = 0;
+
+    public static RegistryEntry.Reference<OutgoingRpcMethod.Simple> BACKUP_STARTED;
+    public static RegistryEntry.Reference<OutgoingRpcMethod.Notification<Long>> BACKUP_COMPLETED;
 
     public static List<TestData> test(ManagementHandlerDispatcher dispatcher) {
         List<TestData> tl = new ArrayList<>();
@@ -73,6 +79,11 @@ public class BackupRpcDispatcher {
                 Codec.INT.fieldOf("d").forGetter(TestData::d)
             ).apply(instance, TestData::new)
         );
+    }
+
+    public static void register(){
+        BACKUP_STARTED = OutgoingRpcMethod.createSimpleBuilder().description("Server backup started").buildAndRegisterVanilla("backup/started");
+        BACKUP_COMPLETED = OutgoingRpcMethod.createNotificationBuilder(Codec.LONG).requestParameter(new RpcRequestParameter("time", RpcSchema.INTEGER)).description("Backup completed").buildAndRegisterVanilla("backup/completed");
     }
 
 }
