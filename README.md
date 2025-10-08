@@ -36,5 +36,18 @@ Here are some tested statistics for each one:
 | XZ     |  782807ms |    1.3597 GB    |
 | LZMA   | 3455693ms |    1.3595 GB    |
 
+###### note: compression times may vary based on hardware and system usage
+
+## Management server
+As of MC 1.21.9 this mod has added support for the new management server protocol.  
+Available management server commands are:
+- backup:run - runs a backup with configured settings
+- backup:run/using - runs a backup with provided settings
+- backup:flush - gets if save flushing is enabled
+- backup:flush/set - sets if save flushing is enabled
+- backup:enabled - gets if automatic backups are enabled
+- backup:enabled/set - set if automatic backups are enabled
+- backup:compression_types - get the available compression types
+
 
 
