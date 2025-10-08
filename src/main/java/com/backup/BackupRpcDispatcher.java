@@ -10,30 +10,30 @@ import net.minecraft.server.dedicated.management.dispatch.ManagementHandlerDispa
 import net.minecraft.server.dedicated.management.network.ManagementConnectionId;
 import net.minecraft.server.dedicated.management.schema.RpcSchema;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 public class BackupRpcDispatcher {
 
-    private static int testId = 0;
+//    private static int testId = 0;
 
     public static RegistryEntry.Reference<OutgoingRpcMethod.Simple> BACKUP_STARTED;
     public static RegistryEntry.Reference<OutgoingRpcMethod.Notification<Long>> BACKUP_COMPLETED;
 
-    public static List<TestData> test(ManagementHandlerDispatcher dispatcher) {
-        List<TestData> tl = new ArrayList<>();
-        tl.add(new TestData(testId++));
-        Main.LOGGER.info("TEST!!!");
-        return tl;
-    }
+//    public static List<TestData> test(ManagementHandlerDispatcher dispatcher) {
+//        List<TestData> tl = new ArrayList<>();
+//        tl.add(new TestData(testId++));
+//        Main.LOGGER.info("TEST!!!");
+//        return tl;
+//    }
 
-    public static List<BooleanResult> run(ManagementHandlerDispatcher dispatcher){
+    public static Boolean run(@SuppressWarnings("unused") ManagementHandlerDispatcher dispatcher){
         Main.backup("manual, management server", Main.config.getCompressionType(),Main.config.getFlush());
-        return List.of(new BooleanResult(true));
+        return true;
     }
 
-    public static List<StringResult> runUsing(ManagementHandlerDispatcher dispatcher, IncomingRpcRunInfo entry, ManagementConnectionId remote){
+    public static String runUsing(@SuppressWarnings("unused")ManagementHandlerDispatcher dispatcher, IncomingRpcRunInfo entry,@SuppressWarnings("unused") ManagementConnectionId remote){
         boolean flush;
         CompressionType compressionType = Main.config.getCompressionType();
         String warning = "true\n";
@@ -49,7 +49,31 @@ public class BackupRpcDispatcher {
 
 
         Main.backup("manual, management server",compressionType,flush);
-        return List.of(new StringResult(Optional.of(warning)));
+        return warning;
+    }
+
+    //flush
+
+    public static Boolean getFlush(@SuppressWarnings("unused")ManagementHandlerDispatcher dispatcher){
+        return Main.config.getFlush();
+    }
+    //flush/set
+    public static Boolean setFlush(@SuppressWarnings("unused")ManagementHandlerDispatcher dispatcher, Boolean entry,@SuppressWarnings("unused") ManagementConnectionId remote){
+        Main.config.setFlush(entry);
+        return entry;
+    }
+    //enabled
+    public static Boolean getEnabled(@SuppressWarnings("unused")ManagementHandlerDispatcher dispatcher){
+        return Main.config.isEnabled();
+    }
+    //enabled/set
+    public static Boolean setEnabled(@SuppressWarnings("unused")ManagementHandlerDispatcher dispatcher, Boolean entry,@SuppressWarnings("unused") ManagementConnectionId remote){
+        Main.config.setEnabled(entry);
+        return entry;
+    }
+
+    public static List<String> getCompressionTypes(@SuppressWarnings("unused")ManagementHandlerDispatcher dispatcher){
+        return Arrays.stream(CompressionType.values()).map(CompressionType::asString).toList();
     }
 
 
@@ -62,24 +86,12 @@ public class BackupRpcDispatcher {
             ).apply(instance, IncomingRpcRunInfo::new));
     }
 
-    public record BooleanResult(boolean value){
-        public static final MapCodec<BooleanResult> CODEC = RecordCodecBuilder.mapCodec( (instance) -> instance.group(
-                Codec.BOOL.fieldOf("result").forGetter(BooleanResult::value)
-        ).apply(instance,BooleanResult::new));
-    }
-
-    public record StringResult(Optional<String> value){
-        public static final MapCodec<StringResult> CODEC = RecordCodecBuilder.mapCodec( (instance) -> instance.group(
-                Codec.STRING.optionalFieldOf("result").forGetter(StringResult::value)
-        ).apply(instance, StringResult::new));
-    }
-
-    public record TestData(int d) {
-        public static final MapCodec<TestData> CODEC = RecordCodecBuilder.mapCodec((instance) -> instance.group(
-                Codec.INT.fieldOf("d").forGetter(TestData::d)
-            ).apply(instance, TestData::new)
-        );
-    }
+//    public record TestData(int d) {
+//        public static final MapCodec<TestData> CODEC = RecordCodecBuilder.mapCodec((instance) -> instance.group(
+//                Codec.INT.fieldOf("d").forGetter(TestData::d)
+//            ).apply(instance, TestData::new)
+//        );
+//    }
 
     public static void register(){
         BACKUP_STARTED = OutgoingRpcMethod.createSimpleBuilder().description("Server backup started").buildAndRegisterVanilla("backup/started");

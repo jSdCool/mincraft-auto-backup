@@ -4,6 +4,7 @@ import com.backup.mixin.CompositeManagementListenerAccessor;
 import com.backup.mixin.NotificationManagementListenerAccessor;
 import com.backup.mixin.NotificationManagementListenerAccessor2;
 import com.mojang.brigadier.builder.ArgumentBuilder;
+import com.mojang.serialization.Codec;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -98,6 +99,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
         final ArgumentBuilder<ServerCommandSource, ?> finalUsingOptions = usingOptions;
 
+        //noinspection CodeBlock2Expr
         CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) -> {
                 dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
             backup("manual",config.getCompressionType(),config.getFlush());
@@ -136,33 +138,73 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
 
 
-        IncomingRpcMethod.Parameterless<List<BackupRpcDispatcher.TestData>> testRpcCommand =  IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::test,BackupRpcDispatcher.TestData.CODEC.codec().listOf())
-                .description("PIss off this is a test")
-                .result(new RpcResponseResult("test", RpcSchema.NUMBER))
-                .build();
+//        IncomingRpcMethod.Parameterless<List<BackupRpcDispatcher.TestData>> testRpcCommand =  IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::test,BackupRpcDispatcher.TestData.CODEC.codec().listOf())
+//                .description("PIss off this is a test")
+//                .result(new RpcResponseResult("test", RpcSchema.NUMBER))
+//                .build();
+//
+//        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"test"),testRpcCommand);
 
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"test"),testRpcCommand);
-
-        IncomingRpcMethod.Parameterless<List<BackupRpcDispatcher.BooleanResult>> rawBackupCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::run,
-                BackupRpcDispatcher.BooleanResult.CODEC.codec().listOf())
+        IncomingRpcMethod.Parameterless<Boolean> rawBackupCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::run,
+                Codec.BOOL)
                 .description("Make a new backup with the configured settings")
                 .result(new RpcResponseResult("result",RpcSchema.BOOLEAN))
                 .build();
         Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run"),rawBackupCommand);
 
 
-        IncomingRpcMethod.Parameterized<BackupRpcDispatcher.IncomingRpcRunInfo,List<BackupRpcDispatcher.StringResult>> paramBackupCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::runUsing,
+        IncomingRpcMethod.Parameterized<BackupRpcDispatcher.IncomingRpcRunInfo,String> paramBackupCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::runUsing,
                         BackupRpcDispatcher.IncomingRpcRunInfo.CODEC.codec(),
-                        BackupRpcDispatcher.StringResult.CODEC.codec().listOf())
+                        Codec.STRING)
                 .description("Make a new backup with the provided settings")
                 .parameter(new RpcRequestParameter("using",BackupRpcDispatcher.USING_SCHEMA))
                 .result(new RpcResponseResult("result",RpcSchema.STRING))
                 .build();
         Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run/using"),paramBackupCommand);
 
+        IncomingRpcMethod.Parameterless<Boolean> getFlushCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::getFlush,
+                Codec.BOOL)
+                .description("Get weather flush is currently enabled for backups")
+                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"flush"),getFlushCommand);
+
+        IncomingRpcMethod.Parameterized<Boolean,Boolean> setFlushCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::setFlush,
+                Codec.BOOL,
+                Codec.BOOL)
+                .description("Set weather flush should be used for backups")
+                .parameter(new RpcRequestParameter("enabled",RpcSchema.BOOLEAN))
+                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"flush/set"),setFlushCommand);
+
+        IncomingRpcMethod.Parameterless<Boolean> getEnabledCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::getEnabled,
+                        Codec.BOOL)
+                .description("Get weather auto backups are currently enabled")
+                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"enabled"),getEnabledCommand);
+
+        IncomingRpcMethod.Parameterized<Boolean,Boolean> setEnabledCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::setEnabled,
+                        Codec.BOOL,
+                        Codec.BOOL)
+                .description("Set weather automatic backups should be made")
+                .parameter(new RpcRequestParameter("enabled",RpcSchema.BOOLEAN))
+                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"enabled/set"),setEnabledCommand);
+
+        IncomingRpcMethod.Parameterless<List<String>> getCompressionTypesCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::getCompressionTypes,
+                Codec.STRING.listOf())
+                .description("Get the available compression types")
+                .result(new RpcResponseResult("compressionTypes",RpcSchema.ofArray(RpcSchema.STRING)))
+                .build();
+        Registry.register(Registries.INCOMING_RPC_METHOD,Identifier.of(MODID,"compression_types"),getCompressionTypesCommand);
+
+
+
+
         BackupRpcDispatcher.register();
-
-
     }//end of on initialize
 
     static MinecraftServer ms;
