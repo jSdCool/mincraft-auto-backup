@@ -47,26 +47,30 @@ public class Backup extends Thread{
 
         //System.out.println("indexing finished starting copy");
         long copyStart = System.nanoTime();//note the time that copying starts
+        try {
+            switch (compressionType) {
+                case NONE -> {
+                    //if using no compression. use the old simple file copying method
 
-        switch(compressionType){
-            case NONE -> {
-                //if using no compression. use the old simple file copying method
+                    for (int i = 0; i < numOfThreads; i++) {//create all the requested threads
+                        threads.add(new CopyThread());
+                        threads.get(i).start();
+                    }
 
-                for(int i=0;i<numOfThreads;i++) {//create all the requested threads
-                    threads.add(new CopyThread());
-                    threads.get(i).start();
+                    backupNoCompression();
                 }
+                case ZIP -> //if using ZIP compression. use the zip backup method
+                        backupZipCompression();
 
-                backupNoCompression();
+                case GZIP -> //if using GZIP compression
+                        backupGZipCompression();
+                case LZ4 -> backupLZ4Compression();
+                case XZ -> backupXzCompression();
+                case LZMA -> backupLzmaCompression();
             }
-            case ZIP -> //if using ZIP compression. use the zip backup method
-                    backupZipCompression();
-
-            case GZIP -> //if using GZIP compression
-                    backupGZipCompression();
-            case LZ4 -> backupLZ4Compression();
-            case XZ -> backupXzCompression();
-            case LZMA -> backupLzmaCompression();
+        } catch (Exception e){
+            success = false;
+            Main.LOGGER.error("Exception while processing backup",e);
         }
         if(!success){
             Main.sendChatErrorMessage("Backup Failed! see server logs for mor details");
