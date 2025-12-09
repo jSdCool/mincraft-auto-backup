@@ -1,9 +1,9 @@
 package com.backup;
 
 import com.mojang.serialization.Codec;
-import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.StringRepresentable;
 
-public enum CompressionType implements StringIdentifiable {
+public enum CompressionType implements StringRepresentable {
     NONE(false),
     ZIP(false),
     GZIP(false),
@@ -21,11 +21,11 @@ public enum CompressionType implements StringIdentifiable {
     }
 
     @Override
-    public String asString() {
+    public String getSerializedName() {
         return this.toString();
     }
 
-    public static final Codec<CompressionType> CODEC = StringIdentifiable.createCodec(CompressionType::values);
+    public static final Codec<CompressionType> CODEC = StringRepresentable.fromEnum(CompressionType::values);
 
     public static CompressionType of(String type){
         for(CompressionType value : values()){

@@ -1,15 +1,15 @@
 package com.backup.mixin;
 
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.server.dedicated.management.OutgoingRpcMethod;
-import net.minecraft.server.dedicated.management.listener.NotificationManagementListener;
+import net.minecraft.core.Holder;
+import net.minecraft.server.jsonrpc.JsonRpcNotificationService;
+import net.minecraft.server.jsonrpc.OutgoingRpcMethod;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
-@Mixin(NotificationManagementListener.class)
+@Mixin(JsonRpcNotificationService.class)
 public interface NotificationManagementListenerAccessor {
-    @Invoker("notifyAll")
-    void callNotifyAll(RegistryEntry.Reference<? extends OutgoingRpcMethod<Void, ?>> method);
+    @Invoker("broadcastNotification")
+    void callNotifyAll(Holder.Reference<? extends OutgoingRpcMethod<Void, ?>> method);
 
 
 }

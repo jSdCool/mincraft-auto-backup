@@ -9,27 +9,27 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.contents.PlainTextContents.LiteralContents;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PlayerManager;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.dedicated.MinecraftDedicatedServer;
-import net.minecraft.server.dedicated.management.IncomingRpcMethod;
-import net.minecraft.server.dedicated.management.OutgoingRpcMethod;
-import net.minecraft.server.dedicated.management.RpcRequestParameter;
-import net.minecraft.server.dedicated.management.RpcResponseResult;
-import net.minecraft.server.dedicated.management.listener.CompositeManagementListener;
-import net.minecraft.server.dedicated.management.listener.ManagementListener;
-import net.minecraft.server.dedicated.management.schema.RpcSchema;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.PlainTextContent.Literal;
-import net.minecraft.text.MutableText;
-import net.minecraft.util.Identifier;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraft.server.jsonrpc.IncomingRpcMethod;
+import net.minecraft.server.jsonrpc.OutgoingRpcMethod;
+import net.minecraft.server.jsonrpc.api.ParamInfo;
+import net.minecraft.server.jsonrpc.api.ResultInfo;
+import net.minecraft.server.jsonrpc.api.Schema;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.notifications.NotificationManager;
+import net.minecraft.server.notifications.NotificationService;
+import net.minecraft.server.players.PlayerList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.literal;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -63,7 +63,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         LOGGER.info("auto backup loaded");
         ServerLifecycleEvents.SERVER_STARTED.register((server) -> {
             ms=server;
-            pm = ms.getPlayerManager();
+            pm = ms.getPlayerList();
 
         });
 
@@ -89,40 +89,40 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         }
 
         //create each separate option for the backup using command
-        ArgumentBuilder<ServerCommandSource, ?> usingOptions = literal("using");
+        ArgumentBuilder<CommandSourceStack, ?> usingOptions = literal("using");
         for(CompressionType type :CompressionType.values()){
-            usingOptions=usingOptions.then(literal(type.asString()).executes(context -> {
+            usingOptions=usingOptions.then(literal(type.getSerializedName()).executes(context -> {
                 backup("manual",type,config.getFlush());
                 return 1;
             }));
         }
 
-        final ArgumentBuilder<ServerCommandSource, ?> finalUsingOptions = usingOptions;
+        final ArgumentBuilder<CommandSourceStack, ?> finalUsingOptions = usingOptions;
 
         //noinspection CodeBlock2Expr
         CommandRegistrationCallback.EVENT.register((dispatcher, commandRegistryAccess, registrationEnvironment) -> {
-                dispatcher.register(literal("backup").requires(source -> source.hasPermissionLevel(3)).executes(context -> {
+                dispatcher.register(literal("backup").requires(source -> source.hasPermission(3)).executes(context -> {
             backup("manual",config.getCompressionType(),config.getFlush());
             return 1;
         })
                 .then(literal("enable").executes(context -> {
                     config.setEnabled(true);
-                    context.getSource().sendFeedback(()->MutableText.of(new Literal("auto backups enabled")),true);
+                    context.getSource().sendSuccess(()->MutableComponent.create(new LiteralContents("auto backups enabled")),true);
                     return 1;
                 }))
                 .then(literal("disable").executes(context -> {
                     config.setEnabled(false);
-                    context.getSource().sendFeedback(()->MutableText.of(new Literal("auto backups disabled")),true);
+                    context.getSource().sendSuccess(()->MutableComponent.create(new LiteralContents("auto backups disabled")),true);
                     return 1;
                 }))
                 .then(literal("enable_flush").executes(context -> {
                     config.setFlush(true);
-                    context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing enabled")),true);
+                    context.getSource().sendSuccess(()->MutableComponent.create(new LiteralContents("save flushing enabled")),true);
                     return 1;
                 }))
                 .then(literal("disable_flush").executes(context -> {
                     config.setFlush(false);
-                    context.getSource().sendFeedback(()->MutableText.of(new Literal("save flushing disabled")),true);
+                    context.getSource().sendSuccess(()->MutableComponent.create(new LiteralContents("save flushing disabled")),true);
                     return 1;
                 }))
                 .then(finalUsingOptions)
@@ -145,61 +145,61 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 //
 //        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"test"),testRpcCommand);
 
-        IncomingRpcMethod.Parameterless<Boolean> rawBackupCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::run,
+        IncomingRpcMethod.ParameterlessMethod<Boolean> rawBackupCommand = IncomingRpcMethod.method(BackupRpcDispatcher::run,
                 Codec.BOOL)
                 .description("Make a new backup with the configured settings")
-                .result(new RpcResponseResult("result",RpcSchema.BOOLEAN))
+                .response(new ResultInfo("result",Schema.BOOL_SCHEMA))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run"),rawBackupCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD, ResourceLocation.fromNamespaceAndPath(MODID, "run"),rawBackupCommand);
 
 
-        IncomingRpcMethod.Parameterized<BackupRpcDispatcher.IncomingRpcRunInfo,String> paramBackupCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::runUsing,
+        IncomingRpcMethod.Method<BackupRpcDispatcher.IncomingRpcRunInfo,String> paramBackupCommand = IncomingRpcMethod.method(BackupRpcDispatcher::runUsing,
                         BackupRpcDispatcher.IncomingRpcRunInfo.CODEC.codec(),
                         Codec.STRING)
                 .description("Make a new backup with the provided settings")
-                .parameter(new RpcRequestParameter("using",BackupRpcDispatcher.USING_SCHEMA))
-                .result(new RpcResponseResult("result",RpcSchema.STRING))
+                .param(new ParamInfo("using",BackupRpcDispatcher.USING_SCHEMA))
+                .response(new ResultInfo("result",Schema.STRING_SCHEMA))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID, "run/using"),paramBackupCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD, ResourceLocation.fromNamespaceAndPath(MODID, "run/using"),paramBackupCommand);
 
-        IncomingRpcMethod.Parameterless<Boolean> getFlushCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::getFlush,
+        IncomingRpcMethod.ParameterlessMethod<Boolean> getFlushCommand = IncomingRpcMethod.method(BackupRpcDispatcher::getFlush,
                 Codec.BOOL)
                 .description("Get weather flush is currently enabled for backups")
-                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .response(new ResultInfo("enabled",Schema.BOOL_SCHEMA))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"flush"),getFlushCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD, ResourceLocation.fromNamespaceAndPath(MODID,"flush"),getFlushCommand);
 
-        IncomingRpcMethod.Parameterized<Boolean,Boolean> setFlushCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::setFlush,
+        IncomingRpcMethod.Method<Boolean,Boolean> setFlushCommand = IncomingRpcMethod.method(BackupRpcDispatcher::setFlush,
                 Codec.BOOL,
                 Codec.BOOL)
                 .description("Set weather flush should be used for backups")
-                .parameter(new RpcRequestParameter("enabled",RpcSchema.BOOLEAN))
-                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .param(new ParamInfo("enabled",Schema.BOOL_SCHEMA))
+                .response(new ResultInfo("enabled",Schema.BOOL_SCHEMA))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"flush/set"),setFlushCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD, ResourceLocation.fromNamespaceAndPath(MODID,"flush/set"),setFlushCommand);
 
-        IncomingRpcMethod.Parameterless<Boolean> getEnabledCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::getEnabled,
+        IncomingRpcMethod.ParameterlessMethod<Boolean> getEnabledCommand = IncomingRpcMethod.method(BackupRpcDispatcher::getEnabled,
                         Codec.BOOL)
                 .description("Get weather auto backups are currently enabled")
-                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .response(new ResultInfo("enabled",Schema.BOOL_SCHEMA))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"enabled"),getEnabledCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD, ResourceLocation.fromNamespaceAndPath(MODID,"enabled"),getEnabledCommand);
 
-        IncomingRpcMethod.Parameterized<Boolean,Boolean> setEnabledCommand = IncomingRpcMethod.createParameterizedBuilder(BackupRpcDispatcher::setEnabled,
+        IncomingRpcMethod.Method<Boolean,Boolean> setEnabledCommand = IncomingRpcMethod.method(BackupRpcDispatcher::setEnabled,
                         Codec.BOOL,
                         Codec.BOOL)
                 .description("Set weather automatic backups should be made")
-                .parameter(new RpcRequestParameter("enabled",RpcSchema.BOOLEAN))
-                .result(new RpcResponseResult("enabled",RpcSchema.BOOLEAN))
+                .param(new ParamInfo("enabled",Schema.BOOL_SCHEMA))
+                .response(new ResultInfo("enabled",Schema.BOOL_SCHEMA))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD, Identifier.of(MODID,"enabled/set"),setEnabledCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD, ResourceLocation.fromNamespaceAndPath(MODID,"enabled/set"),setEnabledCommand);
 
-        IncomingRpcMethod.Parameterless<List<String>> getCompressionTypesCommand = IncomingRpcMethod.createParameterlessBuilder(BackupRpcDispatcher::getCompressionTypes,
+        IncomingRpcMethod.ParameterlessMethod<List<String>> getCompressionTypesCommand = IncomingRpcMethod.method(BackupRpcDispatcher::getCompressionTypes,
                 Codec.STRING.listOf())
                 .description("Get the available compression types")
-                .result(new RpcResponseResult("compressionTypes",RpcSchema.ofArray(RpcSchema.STRING)))
+                .response(new ResultInfo("compressionTypes",Schema.arrayOf(Schema.STRING_SCHEMA)))
                 .build();
-        Registry.register(Registries.INCOMING_RPC_METHOD,Identifier.of(MODID,"compression_types"),getCompressionTypesCommand);
+        Registry.register(BuiltInRegistries.INCOMING_RPC_METHOD,ResourceLocation.fromNamespaceAndPath(MODID,"compression_types"),getCompressionTypesCommand);
 
 
 
@@ -208,18 +208,18 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     }//end of on initialize
 
     static MinecraftServer ms;
-    static PlayerManager pm;
+    static PlayerList pm;
 
     static  void sendChatMessage(String message){
-        MutableText chatMessage=MutableText.of(new Literal(message));
-        pm.broadcast(chatMessage, false);
+        MutableComponent chatMessage=MutableComponent.create(new LiteralContents(message));
+        pm.broadcastSystemMessage(chatMessage, false);
     }
 
     @SuppressWarnings("all")
     static  void sendChatErrorMessage(String message){
-        MutableText chatMessage=MutableText.of(new Literal(message));
+        MutableComponent chatMessage=MutableComponent.create(new LiteralContents(message));
         chatMessage.withColor(0xFFFF0000);//red
-        pm.broadcast(chatMessage, false);
+        pm.broadcastSystemMessage(chatMessage, false);
     }
 
     static void backup(String cause,CompressionType compression, boolean flush){
@@ -234,7 +234,7 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         if(flush) {
             LOGGER.info("if the server freezes for too long then disable flush");
         }
-        ms.saveAll(true, flush, true);
+        ms.saveEverything(true, flush, true);
         Date date = new Date();
         SimpleDateFormat formatter1 = new SimpleDateFormat("yy/MM/dd"),formatter2=new SimpleDateFormat("ddMMyy");
         String dateFolder = formatter1.format(date),folderName=formatter2.format(date)+"-"+System.currentTimeMillis();
@@ -249,12 +249,12 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
 
     static void disableAutoSave(){
 
-        for (ServerWorld serverWorld : ms.getWorlds()) {
-            if (serverWorld.savingDisabled)
+        for (ServerLevel serverWorld : ms.getAllLevels()) {
+            if (serverWorld.noSave)
                 savingWasDisabled = true;
 
-            if (!serverWorld.savingDisabled) {
-                serverWorld.savingDisabled = true;
+            if (!serverWorld.noSave) {
+                serverWorld.noSave = true;
                 savingWasDisabled = false;
             }
 
@@ -262,9 +262,9 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
     }
     static void enableAutoSave(){
 
-        for (ServerWorld serverWorld : ms.getWorlds()) {
-            if (serverWorld != null && serverWorld.savingDisabled && !savingWasDisabled) {
-                serverWorld.savingDisabled = false;
+        for (ServerLevel serverWorld : ms.getAllLevels()) {
+            if (serverWorld != null && serverWorld.noSave && !savingWasDisabled) {
+                serverWorld.noSave = false;
             }
 
         }
@@ -292,11 +292,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         return System.nanoTime()/1000000;
     }
 
-    public static void sendManagementNotification(RegistryEntry.Reference<? extends OutgoingRpcMethod<Void, ?>> method){
-        if(ms instanceof MinecraftDedicatedServer dms){
-            CompositeManagementListener listener = dms.getManagementListener();
+    public static void sendManagementNotification(Holder.Reference<? extends OutgoingRpcMethod<Void, ?>> method){
+        if(ms instanceof DedicatedServer dms){
+            NotificationManager listener = dms.notificationManager();
 
-            List<ManagementListener> managementListeners = ((CompositeManagementListenerAccessor)listener).getListeners();
+            List<NotificationService> managementListeners = ((CompositeManagementListenerAccessor)listener).getNotificationServices();
 
             managementListeners.forEach( (managementListener -> {
                 NotificationManagementListenerAccessor notificationManagementListener = (NotificationManagementListenerAccessor) managementListener;
@@ -305,11 +305,11 @@ public class Main implements ModInitializer, ServerTickEvents.EndTick {
         }
     }
 
-    public static <Params> void sendManagementNotification(RegistryEntry.Reference<? extends OutgoingRpcMethod<Params, ?>> method, Params params){
-        if(ms instanceof MinecraftDedicatedServer dms){
-            CompositeManagementListener listener = dms.getManagementListener();
+    public static <Params> void sendManagementNotification(Holder.Reference<? extends OutgoingRpcMethod<Params, ?>> method, Params params){
+        if(ms instanceof DedicatedServer dms){
+            NotificationManager listener = dms.notificationManager();
 
-            List<ManagementListener> managementListeners = ((CompositeManagementListenerAccessor)listener).getListeners();
+            List<NotificationService> managementListeners = ((CompositeManagementListenerAccessor)listener).getNotificationServices();
 
             managementListeners.forEach( (managementListener -> {
                 NotificationManagementListenerAccessor2 notificationManagementListener = (NotificationManagementListenerAccessor2) managementListener;

@@ -2,23 +2,20 @@ package com.backup;
 
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.serialization.Codec;
-import net.minecraft.command.argument.BlockMirrorArgumentType;
-import net.minecraft.command.argument.EnumArgumentType;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.util.BlockMirror;
-
 import java.util.function.Supplier;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.StringRepresentableArgument;
 
-public class CompressionArgumentType extends EnumArgumentType<CompressionType> {
+public class CompressionArgumentType extends StringRepresentableArgument<CompressionType> {
     protected CompressionArgumentType() {
         super(CompressionType.CODEC, CompressionType::values);
     }
 
-    public static EnumArgumentType<CompressionType> compressionType() {
+    public static StringRepresentableArgument<CompressionType> compressionType() {
         return new CompressionArgumentType();
     }
 
-    public static CompressionType getCompressionType(CommandContext<ServerCommandSource> context, String id) {
+    public static CompressionType getCompressionType(CommandContext<CommandSourceStack> context, String id) {
         return (CompressionType)context.getArgument(id, CompressionType.class);
     }
 }
