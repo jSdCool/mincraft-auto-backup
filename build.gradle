@@ -2,13 +2,17 @@ plugins {
 	id 'fabric-loom' version "${loom_version}"
 	id 'maven-publish'
 	id 'com.matthewprenger.cursegradle' version '1.4.0'
-	id 'com.github.johnrengelman.shadow' version '8.1.1'
+	id 'com.gradleup.shadow' version '9.3.0'
 }
 
-apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'com.gradleup.shadow'
 
 version = project.mod_version
 group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
 
 repositories {
 	mavenCentral()
@@ -71,9 +75,11 @@ remapJar {
 }
 
 jar {
-	from("LICENSE") {
-		rename { "${it}_${project.archivesBaseName}"}
-	}
+    inputs.property "archivesName", project.base.archivesName
+
+    from("LICENSE") {
+        rename { "${it}_${inputs.properties.archivesName}"}
+    }
 }
 
 // configure the maven publication
