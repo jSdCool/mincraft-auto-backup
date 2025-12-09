@@ -12,20 +12,14 @@ import net.minecraft.server.jsonrpc.api.ParamInfo;
 import net.minecraft.server.jsonrpc.api.Schema;
 import net.minecraft.server.jsonrpc.internalapi.MinecraftApi;
 import net.minecraft.server.jsonrpc.methods.ClientInfo;
+import org.jetbrains.annotations.NotNull;
 
 public class BackupRpcDispatcher {
 
 //    private static int testId = 0;
 
-    public static Holder.Reference<OutgoingRpcMethod.ParmeterlessNotification> BACKUP_STARTED;
-    public static Holder.Reference<OutgoingRpcMethod.Notification<Long>> BACKUP_COMPLETED;
-
-//    public static List<TestData> test(ManagementHandlerDispatcher dispatcher) {
-//        List<TestData> tl = new ArrayList<>();
-//        tl.add(new TestData(testId++));
-//        Main.LOGGER.info("TEST!!!");
-//        return tl;
-//    }
+    public static Holder.Reference<@NotNull OutgoingRpcMethod<@NotNull Void, @NotNull Void>> BACKUP_STARTED;
+    public static Holder.Reference<@NotNull OutgoingRpcMethod<@NotNull Long,@NotNull Void>> BACKUP_COMPLETED;
 
     public static Boolean run(@SuppressWarnings("unused") MinecraftApi dispatcher){
         Main.backup("manual, management server", Main.config.getCompressionType(),Main.config.getFlush());
@@ -76,7 +70,7 @@ public class BackupRpcDispatcher {
     }
 
 
-    public static final Schema USING_SCHEMA = Schema.record().withField("flush",Schema.BOOL_SCHEMA).withField("compressionType",Schema.STRING_SCHEMA);
+    public static final Schema<@NotNull IncomingRpcRunInfo> USING_SCHEMA = Schema.record(IncomingRpcRunInfo.CODEC.codec()).withField("flush",Schema.BOOL_SCHEMA).withField("compressionType",Schema.STRING_SCHEMA);
 
     public record IncomingRpcRunInfo(Optional<Boolean> flush, Optional<String> compressionType){
         public static final MapCodec<IncomingRpcRunInfo> CODEC = RecordCodecBuilder.mapCodec( (instance) -> instance.group(
@@ -85,16 +79,9 @@ public class BackupRpcDispatcher {
             ).apply(instance, IncomingRpcRunInfo::new));
     }
 
-//    public record TestData(int d) {
-//        public static final MapCodec<TestData> CODEC = RecordCodecBuilder.mapCodec((instance) -> instance.group(
-//                Codec.INT.fieldOf("d").forGetter(TestData::d)
-//            ).apply(instance, TestData::new)
-//        );
-//    }
-
     public static void register(){
         BACKUP_STARTED = OutgoingRpcMethod.notification().description("Server backup started").register("backup/started");
-        BACKUP_COMPLETED = OutgoingRpcMethod.notification(Codec.LONG).param(new ParamInfo("time", Schema.INT_SCHEMA)).description("Backup completed").register("backup/completed");
+        BACKUP_COMPLETED = OutgoingRpcMethod.<Long>notificationWithParams().param("time", Schema.ofType("long",Codec.LONG)).description("Backup completed").register("backup/completed");
     }
 
 }
