@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Optional;
 import net.minecraft.core.Holder;
 import net.minecraft.server.jsonrpc.OutgoingRpcMethod;
-import net.minecraft.server.jsonrpc.api.ParamInfo;
 import net.minecraft.server.jsonrpc.api.Schema;
 import net.minecraft.server.jsonrpc.internalapi.MinecraftApi;
 import net.minecraft.server.jsonrpc.methods.ClientInfo;
@@ -81,7 +80,7 @@ public class BackupRpcDispatcher {
 
     public static void register(){
         BACKUP_STARTED = OutgoingRpcMethod.notification().description("Server backup started").register("backup/started");
-        BACKUP_COMPLETED = OutgoingRpcMethod.<Long>notificationWithParams().param("time", Schema.ofType("long",Codec.LONG)).description("Backup completed").register("backup/completed");
+        BACKUP_COMPLETED = OutgoingRpcMethod.<Long>notificationWithParams().param("time", Schema.ofType("integer",Codec.LONG)).description("Backup completed").register("backup/completed");
     }
 
 }
