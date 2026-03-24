@@ -3,7 +3,7 @@
   "id": "backup",
   "version": "${version}",
 
-  "name": "automated backup for minecraft",
+  "name": "automated backup for Minecraft",
   "description": "automatically backup your game",
   "authors": [
     "jSdCool"
@@ -27,10 +27,10 @@
   ],
 
   "depends": {
-    "fabricloader": ">=0.14.6",
+    "fabricloader": ">=0.18.4",
     "fabric": "*",
-    "minecraft": "1.21.x",
-    "java": ">=21"
+    "minecraft": ">=26.1",
+    "java": ">=25"
   },
   "suggests": {
     "another-mod": "*"
